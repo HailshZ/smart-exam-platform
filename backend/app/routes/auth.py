@@ -1,7 +1,6 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 import bcrypt
-from app.models import User
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -21,7 +20,7 @@ def register():
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        existing_user = request.app.supabase.table('users')\
+        existing_user = current_app.supabase.table('users')\
             .select('*')\
             .or_(f"username.eq.{data['username']},email.eq.{data['email']}")\
             .execute()
@@ -42,7 +41,7 @@ def register():
             'is_approved': data['role'] == 'student'
         }
         
-        result = request.app.supabase.table('users').insert(user_data).execute()
+        result = current_app.supabase.table('users').insert(user_data).execute()
         
         if result.data:
             return jsonify({
@@ -63,7 +62,7 @@ def login():
         if not data or 'username' not in data or 'password' not in data:
             return jsonify({'error': 'Username and password required'}), 400
         
-        result = request.app.supabase.table('users')\
+        result = current_app.supabase.table('users')\
             .select('*')\
             .eq('username', data['username'])\
             .execute()
@@ -110,7 +109,7 @@ def get_current_user():
     try:
         current_user = get_jwt_identity()
         
-        result = request.app.supabase.table('users')\
+        result = current_app.supabase.table('users')\
             .select('*')\
             .eq('id', current_user['id'])\
             .execute()

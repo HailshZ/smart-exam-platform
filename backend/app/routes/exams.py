@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import json
 from datetime import datetime
@@ -8,7 +8,7 @@ exams_bp = Blueprint('exams', __name__)
 @exams_bp.route('/subjects', methods=['GET'])
 def get_subjects():
     try:
-        result = request.app.supabase.table('subjects').select('*').execute()
+        result = current_app.supabase.table('subjects').select('*').execute()
         return jsonify({'subjects': result.data}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -22,7 +22,7 @@ def get_exam_questions(exam_id):
         # Verify the user has access to this exam
         if current_user['role'] == 'student':
             # Check if student has started this exam
-            attempt_result = request.app.supabase.table('student_attempts')\
+            attempt_result = current_app.supabase.table('student_attempts')\
                 .select('*')\
                 .eq('student_id', current_user['id'])\
                 .eq('exam_id', exam_id)\
@@ -32,7 +32,7 @@ def get_exam_questions(exam_id):
                 return jsonify({'error': 'Exam not started or access denied'}), 403
         
         # Get questions
-        questions_result = request.app.supabase.table('questions')\
+        questions_result = current_app.supabase.table('questions')\
             .select('*')\
             .eq('exam_id', exam_id)\
             .order('sequence_number')\
@@ -67,7 +67,7 @@ def submit_answer():
         
         # Verify the attempt belongs to the student
         if current_user['role'] == 'student':
-            attempt_result = request.app.supabase.table('student_attempts')\
+            attempt_result = current_app.supabase.table('student_attempts')\
                 .select('*')\
                 .eq('id', data['attempt_id'])\
                 .eq('student_id', current_user['id'])\
@@ -84,7 +84,7 @@ def submit_answer():
         }
         
         # Check if answer already exists
-        existing_answer = request.app.supabase.table('student_answers')\
+        existing_answer = current_app.supabase.table('student_answers')\
             .select('*')\
             .eq('attempt_id', data['attempt_id'])\
             .eq('question_id', data['question_id'])\
@@ -92,13 +92,13 @@ def submit_answer():
         
         if existing_answer.data:
             # Update existing answer
-            result = request.app.supabase.table('student_answers')\
+            result = current_app.supabase.table('student_answers')\
                 .update(answer_data)\
                 .eq('id', existing_answer.data[0]['id'])\
                 .execute()
         else:
             # Create new answer
-            result = request.app.supabase.table('student_answers').insert(answer_data).execute()
+            result = current_app.supabase.table('student_answers').insert(answer_data).execute()
         
         if result.data:
             return jsonify({'message': 'Answer submitted successfully'}), 200
@@ -119,7 +119,7 @@ def submit_exam():
             return jsonify({'error': 'Missing attempt_id'}), 400
         
         # Verify the attempt belongs to the student
-        attempt_result = request.app.supabase.table('student_attempts')\
+        attempt_result = current_app.supabase.table('student_attempts')\
             .select('*')\
             .eq('id', data['attempt_id'])\
             .eq('student_id', current_user['id'])\
@@ -129,8 +129,7 @@ def submit_exam():
             return jsonify({'error': 'Invalid attempt'}), 403
         
         # Calculate score (this is a simplified version)
-        # In a real application, you'd have more complex scoring logic
-        answers_result = request.app.supabase.table('student_answers')\
+        answers_result = current_app.supabase.table('student_answers')\
             .select('*, questions(correct_answer, marks)')\
             .eq('attempt_id', data['attempt_id'])\
             .execute()
@@ -145,7 +144,7 @@ def submit_exam():
                 total_score += marks
                 
                 # Update answer with correctness
-                request.app.supabase.table('student_answers')\
+                current_app.supabase.table('student_answers')\
                     .update({'is_correct': True, 'marks_obtained': marks})\
                     .eq('id', answer['id'])\
                     .execute()
@@ -155,7 +154,7 @@ def submit_exam():
         percentage = (total_score / total_marks * 100) if total_marks > 0 else 0
         
         # Update attempt
-        request.app.supabase.table('student_attempts')\
+        current_app.supabase.table('student_attempts')\
             .update({
                 'is_submitted': True,
                 'end_time': datetime.now().isoformat(),
@@ -176,7 +175,7 @@ def submit_exam():
             'submitted_at': datetime.now().isoformat()
         }
         
-        result = request.app.supabase.table('results').insert(result_data).execute()
+        result = current_app.supabase.table('results').insert(result_data).execute()
         
         if result.data:
             return jsonify({
