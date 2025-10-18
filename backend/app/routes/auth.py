@@ -16,13 +16,11 @@ def register():
     try:
         data = request.get_json()
         
-        # Validate required fields
         required_fields = ['username', 'email', 'password', 'role', 'full_name', 'grade']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        # Check if user already exists
         existing_user = request.app.supabase.table('users')\
             .select('*')\
             .or_(f"username.eq.{data['username']},email.eq.{data['email']}")\
@@ -31,10 +29,8 @@ def register():
         if existing_user.data:
             return jsonify({'error': 'Username or email already exists'}), 400
         
-        # Hash password
         hashed_password = hash_password(data['password'])
         
-        # Create user
         user_data = {
             'username': data['username'],
             'email': data['email'],
@@ -43,7 +39,7 @@ def register():
             'full_name': data['full_name'],
             'grade': data['grade'],
             'school_id': data.get('school_id'),
-            'is_approved': data['role'] == 'student'  # Students auto-approved, teachers need admin approval
+            'is_approved': data['role'] == 'student'
         }
         
         result = request.app.supabase.table('users').insert(user_data).execute()
@@ -67,7 +63,6 @@ def login():
         if not data or 'username' not in data or 'password' not in data:
             return jsonify({'error': 'Username and password required'}), 400
         
-        # Get user from database
         result = request.app.supabase.table('users')\
             .select('*')\
             .eq('username', data['username'])\
@@ -78,19 +73,15 @@ def login():
         
         user_data = result.data[0]
         
-        # Check password
         if not check_password(data['password'], user_data['password_hash']):
             return jsonify({'error': 'Invalid credentials'}), 401
         
-        # Check if user is approved
         if not user_data['is_approved']:
             return jsonify({'error': 'Account pending admin approval'}), 403
         
-        # Check if user is active
         if not user_data.get('is_active', True):
             return jsonify({'error': 'Account deactivated'}), 403
         
-        # Create access token
         access_token = create_access_token(identity={
             'id': user_data['id'],
             'username': user_data['username'],
