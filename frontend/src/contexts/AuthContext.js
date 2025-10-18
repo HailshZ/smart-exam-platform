@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode';
+import jwtDecode from 'jwt-decode';
 import api from '../services/api';
 
 const AuthContext = createContext();
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
         ...userData
       });
       
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       return { 
         success: false, 
